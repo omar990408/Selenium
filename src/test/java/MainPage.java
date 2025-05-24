@@ -14,4 +14,5 @@ public class MainPage extends PageBase{
         return this.waitAndReturnElement(titleLocator).getText();
     }
 
+
 }

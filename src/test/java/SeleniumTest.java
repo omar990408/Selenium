@@ -4,8 +4,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.remote.LocalFileDetector;
 import org.openqa.selenium.remote.RemoteWebDriver;
 
+import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -17,14 +19,24 @@ public class SeleniumTest {
     public void setup()  throws MalformedURLException {
         ChromeOptions options = new ChromeOptions();
         driver = new RemoteWebDriver(new URL("http://selenium:4444/wd/hub"), options);
+        ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
         driver.manage().window().maximize();
     }
 
     @Test
-    public void testLogin() {
+    public void testLoginAndSendFormAndLogOut() {
         LoginPage loginPage = new LoginPage(this.driver);
         loginPage.login("webdriver", "webdriver123");
         Assert.assertTrue("Login should be successful", loginPage.isLoginSuccessful());
+        //Send Form
+        ContacUsPage contacUsPage = new ContacUsPage(this.driver);
+        ThankYouPage thankYouPage = contacUsPage.fillContactForm("Test", "Test", "test@gmail.com","Message Test");
+        String bodyText = thankYouPage.getBodyText();
+        Assert.assertTrue("Body text should contain 'Thank You for your Message'", bodyText.contains("Thank You for your Message!"));
+        //Log Out Simulated because the logout button is not available in the current version of the page
+        DashboardPage dashboardPage = new DashboardPage(this.driver);
+        dashboardPage.logout();
+        Assert.assertTrue("Should be at main page after logout", dashboardPage.isAtMainPage());
     }
 
     @Test
@@ -56,6 +68,14 @@ public class SeleniumTest {
         DropCheckRadioPage dropCheckRadioPage = new DropCheckRadioPage(this.driver);
         String valueRadio = dropCheckRadioPage.getSelectedRadioOption("blue");
         Assert.assertEquals("Selected radio button should be 'blue'", "blue", valueRadio);
+    }
+
+    @Test
+    public void uploadFile() {
+        UploadFilePage uploadFilePage = new UploadFilePage(this.driver);
+        String path = new File("files/test.txt").getAbsolutePath();
+        uploadFilePage.uploadFile(path);
+        Assert.assertTrue("Uploaded successful", uploadFilePage.isUploadedSuccessful());
     }
 
     @After
