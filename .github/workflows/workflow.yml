@@ -42,6 +42,4 @@ jobs:
           done
 
       - name: Run tests
-        run: |
-          cd tests/
-          gradle test
+        run: gradle test
