@@ -25,6 +25,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Show current directory and contents
+        run: |
+          pwd
+          ls -l
+
       - name: Wait for Selenium to be ready
         run: |
           for i in {1..30}; do
