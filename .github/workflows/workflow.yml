@@ -1,4 +1,4 @@
-name: Run Selenium Tests
+name: Run Selenium Unit Tests
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  run_unit_test:
     runs-on: ubuntu-latest
 
     services:
@@ -35,5 +35,6 @@ jobs:
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v2
 
-      - name: Run tests
-        run: ./gradlew test
+      - name: Run Gradle tests
+        working-directory: tests
+        run: gradle test

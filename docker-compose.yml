@@ -2,10 +2,7 @@ version: "3"
 
 services:
   ubuntu:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: selenium-tester
+    build: .
     stdin_open: true
     tty: true
     volumes:
@@ -13,8 +10,6 @@ services:
     links:
       - selenium
       - novnc
-    depends_on:
-      - selenium
 
   novnc:
     image: javanile/novnc
@@ -35,8 +30,3 @@ services:
     ports:
       - "4444:4444"
       - "5900:5900"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
