@@ -1,50 +1,57 @@
-name: Ejecutar Pruebas Selenium en Runner Ubuntu
+name: Ejecutar Pruebas Selenium con Docker Compose
 
 on:
   push:
     branches:
-      - main
+      - main # o tu rama principal
   pull_request:
     branches:
-      - main
+      - main # o tu rama principal
 
 jobs:
   run-tests:
-    runs-on: ubuntu-latest # Usamos el runner estándar de GitHub Actions
+    runs-on: ubuntu-latest # Usamos un runner de GitHub Actions
+    container: # Aquí definimos el contenedor principal donde se ejecutarán tus comandos
+      image: local-ubuntu-with-gradle # Nombre de la imagen que construiremos localmente
+      credentials:
+        username: selenium # Usuario definido en tu Dockerfile
+        password: ${{ secrets.SELENIUM_USER_PASSWORD }} # Usaremos un secreto de GitHub
 
-    services: # Aquí definimos los servicios que corren junto a tu job
+    services: # Aquí definimos los servicios que corren junto a tu contenedor principal
       selenium:
-        image: selenium/standalone-chrome:3.141.59
+        image: selenium/standalone-chrome:3.141.59 # Esta es la versión que usas en GitLab CI
         ports:
           - 4444:4444
+          - 5900:5900 # Si quieres acceder al VNC (no es estrictamente necesario para las pruebas)
         options: --health-cmd "curl -f http://localhost:4444/wd/hub/status || exit 1" --health-interval 5s --health-retries 10
+        # ^ Esto asegura que Selenium esté listo antes de que el contenedor principal intente conectarse.
 
     steps:
       - name: Checkout del Código
         uses: actions/checkout@v4
 
-      - name: Instalar Java (OpenJDK 8)
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin' # Eclipse Temurin es una buena opción para OpenJDK
-          java-version: '8'
-
-      - name: Instalar Gradle
-        # Esto es un poco más manual que 'setup-gradle' si necesitas una versión específica no soportada
+      - name: Construir Imagen Docker Personalizada (tu Dockerfile)
         run: |
-          GRADLE_VERSION=7.4
-          wget -q https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip
-          unzip gradle-$GRADLE_VERSION-bin.zip
-          rm gradle-$GRADLE_VERSION-bin.zip
-          sudo mv gradle-$GRADLE_VERSION /opt/gradle
-          sudo ln -s /opt/gradle/bin/gradle /usr/bin/gradle
-          echo "GRADLE_HOME=/opt/gradle" >> $GITHUB_ENV
-          echo "/opt/gradle/bin" >> $GITHUB_PATH
+          docker build -t local-ubuntu-with-gradle .
+        # ^ Este paso construye tu imagen personalizada antes de que el job intente usarla como 'container'
+
+      - name: Configurar Entorno (Gradle, Java)
+        # Esto ya debería estar configurado por tu Dockerfile al construir la imagen 'local-ubuntu-with-gradle'
+        # Puedes añadir aquí cualquier comando adicional si es necesario, pero idealmente no.
+        run: |
+          echo "Verificando instalación de Java y Gradle..."
+          java -version
           gradle -v
+        working-directory: /home/selenium/tests # Asegúrate de que este sea el directorio correcto dentro del contenedor
 
       - name: Navegar a la carpeta de pruebas y Ejecutar Pruebas Gradle
         run: |
-          cd tests/ # Asumiendo que tus pruebas están en una subcarpeta 'tests'
-          gradle test --info
+          # Asegúrate de que el volumen esté montado correctamente y la ruta sea accesible
+          # En tu Dockerfile, el WORKDIR es /home/selenium/
+          # Y en docker-compose.yml, el volumen es ./:/home/selenium/tests
+          # Por lo tanto, tus pruebas estarán en /home/selenium/tests dentro del contenedor 'ubuntu'
+          cd /home/selenium/tests
+          gradle test --info # --info para más logs si hay problemas
+        working-directory: /home/selenium/tests # Asegúrate de que este sea el directorio correcto dentro del contenedor
         env:
           SELENIUM_HOST: selenium # Asegúrate de que tus pruebas usen 'selenium' como hostname
