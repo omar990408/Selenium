@@ -1,57 +1,42 @@
-name: Ejecutar Pruebas Selenium con Docker Compose
+name: Run Unit Tests
 
 on:
   push:
-    branches:
-      - main # o tu rama principal
+    branches: [main]
   pull_request:
-    branches:
-      - main # o tu rama principal
+    branches: [main]
 
 jobs:
-  run-tests:
-    runs-on: ubuntu-latest # Usamos un runner de GitHub Actions
-    container: # Aquí definimos el contenedor principal donde se ejecutarán tus comandos
-      image: local-ubuntu-with-gradle # Nombre de la imagen que construiremos localmente
-      credentials:
-        username: selenium # Usuario definido en tu Dockerfile
-        password: ${{ secrets.SELENIUM_USER_PASSWORD }} # Usaremos un secreto de GitHub
+  test:
+    runs-on: ubuntu-latest
 
-    services: # Aquí definimos los servicios que corren junto a tu contenedor principal
+    container:
+      image: gradle:8.0.2
+
+    services:
       selenium:
-        image: selenium/standalone-chrome:3.141.59 # Esta es la versión que usas en GitLab CI
+        image: selenium/standalone-chrome:3.141.59
         ports:
           - 4444:4444
-          - 5900:5900 # Si quieres acceder al VNC (no es estrictamente necesario para las pruebas)
-        options: --health-cmd "curl -f http://localhost:4444/wd/hub/status || exit 1" --health-interval 5s --health-retries 10
-        # ^ Esto asegura que Selenium esté listo antes de que el contenedor principal intente conectarse.
+        options: >-
+          --shm-size=2g
 
     steps:
-      - name: Checkout del Código
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Construir Imagen Docker Personalizada (tu Dockerfile)
+      - name: Wait for Selenium to be ready
         run: |
-          docker build -t local-ubuntu-with-gradle .
-        # ^ Este paso construye tu imagen personalizada antes de que el job intente usarla como 'container'
+          for i in {1..30}; do
+            if curl http://selenium:4444/wd/hub/status | grep -q "ready"; then
+              echo "Selenium is ready"
+              break
+            fi
+            echo "Waiting for Selenium..."
+            sleep 2
+          done
 
-      - name: Configurar Entorno (Gradle, Java)
-        # Esto ya debería estar configurado por tu Dockerfile al construir la imagen 'local-ubuntu-with-gradle'
-        # Puedes añadir aquí cualquier comando adicional si es necesario, pero idealmente no.
+      - name: Run tests
         run: |
-          echo "Verificando instalación de Java y Gradle..."
-          java -version
-          gradle -v
-        working-directory: /home/selenium/tests # Asegúrate de que este sea el directorio correcto dentro del contenedor
-
-      - name: Navegar a la carpeta de pruebas y Ejecutar Pruebas Gradle
-        run: |
-          # Asegúrate de que el volumen esté montado correctamente y la ruta sea accesible
-          # En tu Dockerfile, el WORKDIR es /home/selenium/
-          # Y en docker-compose.yml, el volumen es ./:/home/selenium/tests
-          # Por lo tanto, tus pruebas estarán en /home/selenium/tests dentro del contenedor 'ubuntu'
-          cd /home/selenium/tests
-          gradle test --info # --info para más logs si hay problemas
-        working-directory: /home/selenium/tests # Asegúrate de que este sea el directorio correcto dentro del contenedor
-        env:
-          SELENIUM_HOST: selenium # Asegúrate de que tus pruebas usen 'selenium' como hostname
+          cd tests/
+          gradle test
