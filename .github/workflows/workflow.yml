@@ -1,4 +1,4 @@
-name: Run Unit Tests
+name: Run Selenium Tests
 
 on:
   push:
@@ -36,5 +36,4 @@ jobs:
         uses: gradle/gradle-build-action@v2
 
       - name: Run tests
-        working-directory: tests
         run: ./gradlew test
